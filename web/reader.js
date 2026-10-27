@@ -1,4 +1,5 @@
 const id = new URLSearchParams(location.search).get("id");
+if (!/^[0-9a-f]{12}$/.test(id || "")) { location.replace("/"); throw new Error("Bad book id"); }
 const $ = (x) => document.getElementById(x);
 const audio = new Audio();
 const CHARS_PER_SEC = 15; // rough Kokoro pace, corrected as real clips arrive
@@ -119,7 +120,9 @@ function renderPages() {
     const el = document.createElement("div");
     el.className = "page";
     el.style.aspectRatio = `${p.w} / ${p.h}`;
-    el.innerHTML = `<img loading="lazy" alt="Page ${n + 1}" src="/api/books/${id}/pages/${n}.png">`;
+    const img = new Image();
+    Object.assign(img, { loading: "lazy", alt: `Page ${n + 1}`, src: `/api/books/${id}/pages/${n}.png` });
+    el.append(img);
     el.onclick = (e) => {
       const r = el.getBoundingClientRect();
       const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;

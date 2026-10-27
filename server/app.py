@@ -1,4 +1,5 @@
 import json
+import re
 import shutil
 import time
 import uuid
@@ -6,6 +7,7 @@ from pathlib import Path
 
 import soundfile as sf
 from fastapi import FastAPI, HTTPException, UploadFile
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -17,6 +19,8 @@ BOOKS = ROOT / "data" / "books"
 BOOKS.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI()
+# Only answer to localhost, so other websites can't reach the API via DNS rebinding.
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1"])
 
 
 @app.middleware("http")
@@ -29,7 +33,7 @@ async def revalidate_web_files(request, call_next):
 
 def book_dir(book_id: str) -> Path:
     d = BOOKS / book_id
-    if not (d / "meta.json").exists():
+    if not re.fullmatch(r"[0-9a-f]{12}", book_id) or not (d / "meta.json").exists():
         raise HTTPException(404, "Book not found")
     return d
 
