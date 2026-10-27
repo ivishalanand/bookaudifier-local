@@ -8,7 +8,9 @@
 </head>
 <body>
   <header class="top">
-    <a href="/" title="Library">← Library</a>
+    <a href="/" class="back" title="Library">
+      <svg viewBox="0 0 24 24"><path d="M15.4 7.4 14 6l-6 6 6 6 1.4-1.4L10.8 12z"/></svg> Library
+    </a>
     <h1 id="title"></h1>
     <div class="zoom">
       <button id="zoomOut" title="Smaller pages (−)">−</button>
@@ -18,6 +20,10 @@
   </header>
   <main class="pages" id="pages"></main>
 
+  <button class="jump" id="jump" hidden>
+    <svg viewBox="0 0 24 24"><path d="M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16zm0 5a3 3 0 1 1 0 6 3 3 0 0 1 0-6z"/></svg> Back to reading
+  </button>
+
   <footer class="player" id="player">
     <div class="scrub">
       <span id="elapsed">0:00</span>
@@ -25,7 +31,13 @@
       <span id="total">0:00</span>
     </div>
     <div class="controls">
-      <div class="left" id="where"></div>
+      <div class="left">
+        <img class="thumb" id="thumb" alt="">
+        <div class="now">
+          <div class="now-title" id="nowTitle"></div>
+          <div class="now-where" id="where"></div>
+        </div>
+      </div>
       <div class="buttons">
         <button id="prev" title="Previous sentence">
           <svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>

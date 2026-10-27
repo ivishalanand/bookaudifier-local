@@ -185,6 +185,12 @@ function follow(force = false) {
     scrollBy({ top: Math.abs(off) > band ? off : 0, left: side, behavior: Math.abs(off) > 3 * innerHeight ? "instant" : "smooth" });
   }
 }
+// Offer a way back when the reading spot is scrolled out of view.
+addEventListener("scroll", () => {
+  const r = document.querySelector(".hl")?.getBoundingClientRect();
+  $("jump").hidden = !r || (r.bottom > 0 && r.top < $("player").getBoundingClientRect().top && r.right > 0 && r.left < innerWidth);
+}, { passive: true });
+$("jump").onclick = () => follow(true);
 ["wheel", "touchmove", "mousedown", "keydown"].forEach((ev) => addEventListener(ev, () => (lastUserScroll = Date.now()), { passive: true }));
 
 // ---- UI ----
@@ -200,6 +206,7 @@ function updateUI() {
   $("elapsed").textContent = fmt((start + curTime()) / speed);
   $("total").textContent = fmt(total / speed);
   if (!scrubbing) $("seek").value = cur;
+  $("seek").style.setProperty("--p", `${(100 * $("seek").value) / Math.max(1, sentences.length - 1)}%`);
   if (!$("player").classList.contains("loading") || !playing) {
     $("where").textContent = `Page ${sentences[cur].rects[0][0] + 1} of ${pages.length}`;
   }
@@ -245,6 +252,7 @@ $("zoomOut").onclick = () => stepZoom(-1);
 
 $("seek").oninput =(e) => {
   scrubbing = true;
+  e.target.style.setProperty("--p", `${(100 * e.target.value) / Math.max(1, sentences.length - 1)}%`);
   $("where").textContent = `Page ${sentences[e.target.value].rects[0][0] + 1} of ${pages.length}`;
 };
 $("seek").onchange = (e) => { scrubbing = false; go(Number(e.target.value)); };
@@ -275,7 +283,8 @@ if ("mediaSession" in navigator) {
   if (!res.ok) { location.href = "/"; return; }
   const book = await res.json();
   ({ sentences, pages } = book);
-  document.title = $("title").textContent = book.title;
+  document.title = $("title").textContent = $("nowTitle").textContent = book.title;
+  $("thumb").src = `/api/books/${id}/pages/0.png`;
   if ("mediaSession" in navigator) navigator.mediaSession.metadata = new MediaMetadata({ title: book.title });
   byPage = pages.map(() => []);
   sentences.forEach((s, i) => s.rects.forEach((r) => byPage[r[0]].push([i, r])));
