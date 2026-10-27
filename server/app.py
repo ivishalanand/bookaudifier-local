@@ -42,6 +42,17 @@ def read_json(path: Path, default=None):
     return json.loads(path.read_text()) if path.exists() else default
 
 
+def load_meta(d: Path) -> dict:
+    meta = read_json(d / "meta.json")
+    if meta["sentences"] and "words" not in meta["sentences"][0]:
+        # Books added before word highlighting: re-extract to get word boxes.
+        fresh = pdf.extract(str(d / "book.pdf"))["sentences"]
+        if [s["text"] for s in fresh] == [s["text"] for s in meta["sentences"]]:
+            meta["sentences"] = fresh
+            (d / "meta.json").write_text(json.dumps(meta))
+    return meta
+
+
 class Progress(BaseModel):
     sentence: int = 0
     offset: float = 0
@@ -99,7 +110,9 @@ def delete(book_id: str):
 @app.get("/api/books/{book_id}")
 def get_book(book_id: str):
     d = book_dir(book_id)
-    meta = read_json(d / "meta.json")
+    meta = load_meta(d)
+    for s in meta["sentences"]:
+        s.pop("words", None)  # served per sentence with the audio timings instead
     meta["progress"] = read_json(d / "progress.json", Progress().model_dump())
     return meta
 
@@ -121,20 +134,35 @@ def page_image(book_id: str, pno: int):
     return FileResponse(out, headers={"Cache-Control": "max-age=31536000"})
 
 
-@app.get("/api/books/{book_id}/audio/{idx}.wav")
-def sentence_audio(book_id: str, idx: int):
+def sentence_audio(book_id: str, idx: int) -> Path:
+    """Generate (once) a sentence's WAV plus a JSON of [start, end, page, x, y, w, h] per spoken word."""
     d = book_dir(book_id)
-    sentences = read_json(d / "meta.json")["sentences"]
+    sentences = load_meta(d)["sentences"]
     if not 0 <= idx < len(sentences):
         raise HTTPException(404, "No such sentence")
     e = tts.engine()
     out = d / "audio" / f"{e.name}-{e.voice}" / f"{idx}.wav"
-    if not out.exists():
+    if not out.with_suffix(".json").exists():
         out.parent.mkdir(parents=True, exist_ok=True)
+        audio, tokens = tts.synthesize(sentences[idx]["text"])
+        words = sentences[idx].get("words", [])
+        times = tts.align([w[0] for w in words], tokens)
+        timed = [[*t, *w[1:]] for t, w in zip(times, words) if t]
         tmp = out.with_suffix(".tmp.wav")
-        sf.write(tmp, tts.synthesize(sentences[idx]["text"]), e.sample_rate)
+        sf.write(tmp, audio, e.sample_rate)
         tmp.rename(out)
-    return FileResponse(out)
+        out.with_suffix(".json").write_text(json.dumps(timed))
+    return out
+
+
+@app.get("/api/books/{book_id}/audio/{idx}.wav")
+def audio_wav(book_id: str, idx: int):
+    return FileResponse(sentence_audio(book_id, idx))
+
+
+@app.get("/api/books/{book_id}/audio/{idx}.json")
+def audio_words(book_id: str, idx: int):
+    return FileResponse(sentence_audio(book_id, idx).with_suffix(".json"))
 
 
 app.mount("/", StaticFiles(directory=ROOT / "web", html=True), name="web")

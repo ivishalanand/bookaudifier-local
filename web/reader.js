@@ -16,6 +16,7 @@ let lastUserScroll = 0, lastSave = 0, scrubbing = false;
 // ---- audio clips ----
 const clips = new Map(); // idx -> Promise<objectURL>
 const known = new Map(); // idx -> real duration (s)
+const timings = new Map(); // idx -> [[start, end, page, x, y, w, h], ...] per spoken word
 let knownSecs = 0, knownChars = 0;
 
 const estDur = (i) => known.get(i) ?? (sentences[i].text.length / CHARS_PER_SEC) * (knownSecs ? knownSecs / (knownChars / CHARS_PER_SEC) : 1);
@@ -33,6 +34,9 @@ function clip(i) {
         if (!known.has(i)) {
           const d = await wavDuration(b);
           known.set(i, d); knownSecs += d; knownChars += sentences[i].text.length;
+        }
+        if (!timings.has(i)) {
+          timings.set(i, await fetch(`/api/books/${id}/audio/${i}.json`).then((r) => (r.ok ? r.json() : [])).catch(() => []));
         }
         return URL.createObjectURL(b);
       });
@@ -145,6 +149,25 @@ function highlight(i, instant = false) {
   }
   follow(instant);
 }
+
+// Mark the word being spoken, checked every frame since timeupdate is too coarse.
+const wordEl = Object.assign(document.createElement("div"), { className: "hlw" });
+let wordKey = "";
+function trackWord() {
+  requestAnimationFrame(trackWord);
+  const words = loaded === cur ? timings.get(cur) : null;
+  const t = audio.currentTime;
+  let k = -1;
+  if (words) for (let j = 0; j < words.length && words[j][0] <= t; j++) k = j;
+  const key = `${cur}:${k}`;
+  if (key === wordKey) return;
+  wordKey = key;
+  if (k < 0) { wordEl.remove(); return; }
+  const [, , p, x, y, w, h] = words[k];
+  Object.assign(wordEl.style, { left: `${x * 100}%`, top: `${y * 100}%`, width: `${w * 100}%`, height: `${h * 100}%` });
+  $("pages").children[p].append(wordEl);
+}
+requestAnimationFrame(trackWord);
 
 // Keep the highlight in view; a manual scroll pauses this for 3 s.
 function follow(force = false) {

@@ -6,6 +6,7 @@
   --line: #e3e1db;
   --accent: #2f6f5e;
   --hl: rgba(255, 214, 10, 0.42);
+  --hlw: rgba(255, 140, 0, 0.5);
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 6px 24px rgba(0, 0, 0, 0.06);
 }
 @media (prefers-color-scheme: dark) {
@@ -17,6 +18,7 @@
     --line: #333333;
     --accent: #6cc3a8;
     --hl: rgba(255, 214, 10, 0.38);
+    --hlw: rgba(255, 140, 0, 0.5);
     --shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
   }
 }
@@ -104,6 +106,15 @@ a { color: inherit; text-decoration: none; }
   border-radius: 3px;
   pointer-events: none;
   outline: 2px solid var(--hl);
+}
+.hlw {
+  position: absolute;
+  background: var(--hlw);
+  mix-blend-mode: multiply;
+  border-radius: 3px;
+  pointer-events: none;
+  outline: 2px solid var(--hlw);
+  transition: left 0.08s, top 0.08s, width 0.08s;
 }
 
 /* Player */

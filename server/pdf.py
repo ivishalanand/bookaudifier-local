@@ -28,7 +28,7 @@ def extract(path: str) -> dict:
             else:
                 text += (" " if text else "") + t
         if SPEAKABLE.search(text):
-            sentences.append({"text": text, "rects": _line_rects(words, pages)})
+            sentences.append({"text": text, "rects": _line_rects(words, pages), "words": _word_boxes(words, pages)})
         words.clear()
 
     for pno, page in enumerate(doc):
@@ -67,6 +67,15 @@ def _line_rects(words, pages):
     for (pno, _, _), (x0, y0, x1, y1) in lines.items():
         w, h = pages[pno]["w"], pages[pno]["h"]
         out.append([pno, round(x0 / w, 4), round(y0 / h, 4), round((x1 - x0) / w, 4), round((y1 - y0) / h, 4)])
+    return out
+
+
+def _word_boxes(words, pages):
+    """Each word's text and box, normalized to 0..1 of the page."""
+    out = []
+    for t, pno, _, _, (x0, y0, x1, y1) in words:
+        w, h = pages[pno]["w"], pages[pno]["h"]
+        out.append([t, pno, round(x0 / w, 4), round(y0 / h, 4), round((x1 - x0) / w, 4), round((y1 - y0) / h, 4)])
     return out
 
 
