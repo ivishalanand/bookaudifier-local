@@ -166,17 +166,20 @@ function trackWord() {
   const [, , p, x, y, w, h] = words[k];
   Object.assign(wordEl.style, { left: `${x * 100}%`, top: `${y * 100}%`, width: `${w * 100}%`, height: `${h * 100}%` });
   $("pages").children[p].append(wordEl);
+  if (!audio.paused) follow();
 }
 requestAnimationFrame(trackWord);
 
-// Keep the highlight in view; a manual scroll pauses this for 3 s.
+// Keep the spoken word in the middle 20% of the visible area; a manual scroll pauses this for 3 s.
 function follow(force = false) {
-  const first = document.querySelector(".hl");
-  if (!first || (!force && Date.now() - lastUserScroll < 3000)) return;
-  const r = first.getBoundingClientRect();
-  if (force || r.top < 90 || r.bottom > innerHeight - 180) {
-    first.scrollIntoView({ block: "center", behavior: Math.abs(r.top) > 3 * innerHeight ? "auto" : "smooth" });
-  }
+  const target = wordEl.isConnected ? wordEl : document.querySelector(".hl");
+  if (!target || (!force && Date.now() - lastUserScroll < 3000)) return;
+  const top = document.querySelector(".top").getBoundingClientRect().bottom;
+  const bottom = $("player").getBoundingClientRect().top;
+  const mid = (top + bottom) / 2, band = (bottom - top) * 0.1;
+  const r = target.getBoundingClientRect();
+  const off = (r.top + r.bottom) / 2 - mid;
+  if (Math.abs(off) > band) scrollBy({ top: off, behavior: Math.abs(off) > 3 * innerHeight ? "instant" : "smooth" });
 }
 ["wheel", "touchmove", "mousedown", "keydown"].forEach((ev) => addEventListener(ev, () => (lastUserScroll = Date.now()), { passive: true }));
 
