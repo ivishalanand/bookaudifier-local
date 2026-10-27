@@ -195,7 +195,7 @@ function wake() {
   document.body.classList.remove("focus");
   clearTimeout(idleTimer);
   idleTimer = setTimeout(() => {
-    if (document.querySelector(".top:hover, .player:hover, select:focus")) return wake();
+    if (document.querySelector(".top:hover, .player:hover, .dd.open")) return wake();
     document.body.classList.add("focus");
   }, 2500);
 }
@@ -254,7 +254,6 @@ $("voice").onchange = (e) => {
   const t = curTime();
   audio.pause(); loaded = -1;
   go(cur, t);
-  e.target.blur();
 };
 $("speed").onchange = (e) => {
   speed = Number(e.target.value);
@@ -294,7 +293,7 @@ $("seek").oninput = (e) => {
 $("seek").onchange = (e) => { scrubbing = false; go(Number(e.target.value)); };
 
 addEventListener("keydown", (e) => {
-  if (["INPUT", "SELECT"].includes(e.target.tagName)) return;
+  if (["INPUT", "SELECT"].includes(e.target.tagName) || e.target.closest(".dd")) return;
   if (e.code === "Space") { e.preventDefault(); toggle(); }
   else if (e.code === "ArrowLeft") seekBy(-10);
   else if (e.code === "ArrowRight") seekBy(10);
@@ -312,6 +311,74 @@ if ("mediaSession" in navigator) {
   ms.setActionHandler("seekforward", () => seekBy(10));
   ms.setActionHandler("previoustrack", () => go(cur - 1));
   ms.setActionHandler("nexttrack", () => go(cur + 1));
+}
+
+// Compact dropdown built from a hidden <select>: a pill showing the value, and a menu that opens
+// centered above it, stays inside the window, and works with arrow keys, Enter and Esc.
+function dropdown(select) {
+  const wrap = Object.assign(document.createElement("div"), { className: "dd" });
+  const btn = Object.assign(document.createElement("button"), { type: "button", className: "dd-btn", title: select.title });
+  const menu = Object.assign(document.createElement("div"), { className: "dd-menu", hidden: true });
+  btn.setAttribute("aria-haspopup", "listbox");
+  btn.setAttribute("aria-expanded", "false");
+  btn.setAttribute("aria-label", select.title);
+  menu.setAttribute("role", "listbox");
+  btn.innerHTML = '<span></span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 14l5-5 5 5z"/></svg>';
+  select.hidden = true;
+  select.after(wrap);
+  wrap.append(btn, menu);
+  const items = () => [...menu.querySelectorAll("[role=option]")];
+  const sync = () => {
+    btn.firstChild.textContent = select.selectedOptions[0]?.text ?? "";
+    items().forEach((o) => o.setAttribute("aria-selected", o.dataset.value === select.value));
+  };
+  const option = (opt) => {
+    const o = Object.assign(document.createElement("button"), { type: "button", textContent: opt.text });
+    o.setAttribute("role", "option");
+    o.dataset.value = opt.value;
+    o.onclick = () => { select.value = opt.value; select.dispatchEvent(new Event("change")); close(); btn.focus(); };
+    return o;
+  };
+  for (const el of select.children) {
+    if (el.tagName !== "OPTGROUP") { menu.append(option(el)); continue; }
+    const g = Object.assign(document.createElement("div"), { className: "dd-group" });
+    g.setAttribute("role", "group");
+    g.setAttribute("aria-label", el.label);
+    g.append(Object.assign(document.createElement("div"), { className: "dd-label", textContent: el.label }), ...[...el.children].map(option));
+    menu.append(g);
+    menu.classList.add("grouped");
+  }
+  function place() {
+    menu.style.setProperty("--shift", "0px");
+    const r = menu.getBoundingClientRect();
+    menu.style.setProperty("--shift", `${Math.max(12 - r.left, Math.min(0, innerWidth - 12 - r.right))}px`);
+  }
+  function open() {
+    sync();
+    menu.hidden = false;
+    wrap.classList.add("open");
+    btn.setAttribute("aria-expanded", "true");
+    place();
+    (items().find((o) => o.getAttribute("aria-selected") === "true") || items()[0]).focus();
+  }
+  function close() {
+    menu.hidden = true;
+    wrap.classList.remove("open");
+    btn.setAttribute("aria-expanded", "false");
+  }
+  btn.onclick = () => (menu.hidden ? open() : close());
+  menu.onkeydown = (e) => {
+    const list = items(), i = list.indexOf(document.activeElement);
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      list[(i + (e.key === "ArrowDown" ? 1 : -1) + list.length) % list.length].focus();
+    } else if (e.key === "Escape") { close(); btn.focus(); }
+    else if (e.key === "Tab") close();
+  };
+  addEventListener("pointerdown", (e) => { if (!wrap.contains(e.target)) close(); });
+  addEventListener("resize", () => { if (!menu.hidden) place(); });
+  select.addEventListener("change", sync);
+  sync();
 }
 
 // ---- boot ----
@@ -338,6 +405,8 @@ if ("mediaSession" in navigator) {
   voice = vs.voices.some((x) => x.id === book.progress.voice) ? book.progress.voice : vs.default;
   $("voice").value = voice;
   $("speed").value = String(speed);
+  dropdown($("voice"));
+  dropdown($("speed"));
   renderPages();
   setZoom(zoom);
   cur =Math.min(book.progress.sentence || 0, sentences.length - 1);
