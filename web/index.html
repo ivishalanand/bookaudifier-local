@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bookaudifier</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="library">
+    <h1>Bookaudifier</h1>
+    <p class="sub">Your books, read aloud. Everything stays on this Mac.</p>
+    <label class="drop" id="drop">
+      <input type="file" id="file" accept="application/pdf">
+      <span id="dropText"><strong>Upload a PDF</strong> or drop it here</span>
+    </label>
+    <p class="error" id="error"></p>
+    <ul class="books" id="books"></ul>
+  </main>
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    async function load() {
+      const books = await (await fetch("/api/books")).json();
+      $("books").innerHTML = "";
+      for (const b of books) {
+        const pct = Math.round((100 * b.progress) / Math.max(1, b.sentences - 1));
+        const li = document.createElement("li");
+        li.className = "book";
+        li.innerHTML = `
+          <a href="reader.html?id=${b.id}">
+            <div class="title"></div>
+            <div class="meta">${b.pages} pages · ${pct}% listened</div>
+            <div class="bar"><span style="width:${pct}%"></span></div>
+          </a>
+          <button class="remove" title="Remove">Remove</button>`;
+        li.querySelector(".title").textContent = b.title;
+        li.querySelector(".remove").onclick = async () => {
+          if (!confirm(`Remove "${b.title}" and its audio?`)) return;
+          await fetch(`/api/books/${b.id}`, { method: "DELETE" });
+          load();
+        };
+        $("books").append(li);
+      }
+    }
+
+    async function upload(file) {
+      $("error").textContent = "";
+      $("dropText").textContent = `Reading ${file.name}…`;
+      const body = new FormData();
+      body.append("file", file);
+      const res = await fetch("/api/books", { method: "POST", body });
+      const data = await res.json();
+      if (res.ok) location.href = `reader.html?id=${data.id}`;
+      else {
+        $("error").textContent = data.detail;
+        $("dropText").innerHTML = "<strong>Upload a PDF</strong> or drop it here";
+      }
+    }
+
+    $("file").onchange = (e) => e.target.files[0] && upload(e.target.files[0]);
+    const drop = $("drop");
+    drop.ondragover = (e) => { e.preventDefault(); drop.classList.add("over"); };
+    drop.ondragleave = () => drop.classList.remove("over");
+    drop.ondrop = (e) => {
+      e.preventDefault();
+      drop.classList.remove("over");
+      if (e.dataTransfer.files[0]) upload(e.dataTransfer.files[0]);
+    };
+    load();
+  </script>
+</body>
+</html>

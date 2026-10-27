@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "bookaudifier",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": ["run", "uvicorn", "server.app:app", "--port", "8765"],
+      "port": 8765
+    }
+  ]
+}

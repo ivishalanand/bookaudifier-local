@@ -1,0 +1,16 @@
+[project]
+name = "bookaudifier"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "en-core-web-sm",
+    "fastapi>=0.162.0",
+    "kokoro>=0.9.4",
+    "pymupdf>=2.0",
+    "python-multipart>=0.0.32",
+    "soundfile>=0.14.0",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[tool.uv.sources]
+en-core-web-sm = { path = "vendor/en_core_web_sm-3.8.0-py3-none-any.whl" }
