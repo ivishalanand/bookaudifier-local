@@ -16,8 +16,14 @@ primary_region = 'ams'
   min_machines_running = 0
   processes = ['app']
 
+[env]
+  ALLOWED_HOSTS = 'bookaudifier-local.fly.dev'
+
+[mounts]
+  source = 'bookdata'
+  destination = '/app/data'
+
 [[vm]]
-  memory = '1gb'
+  memory = '2gb'
   cpu_kind = 'shared'
-  cpus = 1
-  memory_mb = 256
+  cpus = 2

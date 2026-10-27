@@ -1,5 +1,9 @@
+import base64
+import binascii
 import json
+import os
 import re
+import secrets
 import shutil
 import time
 import uuid
@@ -8,7 +12,7 @@ from pathlib import Path
 import soundfile as sf
 from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -19,8 +23,26 @@ BOOKS = ROOT / "data" / "books"
 BOOKS.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI()
-# Only answer to localhost, so other websites can't reach the API via DNS rebinding.
-app.add_middleware(TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1"])
+# Only answer to localhost (plus ALLOWED_HOSTS when hosted), so other websites can't reach the API via DNS rebinding.
+hosts = [h for h in os.environ.get("ALLOWED_HOSTS", "").split(",") if h]
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1", *hosts])
+PASSWORD = os.environ.get("APP_PASSWORD", "")
+if hosts and not PASSWORD:
+    raise RuntimeError("Set APP_PASSWORD when ALLOWED_HOSTS exposes the app beyond localhost")
+
+
+@app.middleware("http")
+async def require_password(request, call_next):
+    """When APP_PASSWORD is set, ask the browser for it (any username)."""
+    if PASSWORD:
+        scheme, _, value = request.headers.get("authorization", "").partition(" ")
+        try:
+            given = base64.b64decode(value).decode().partition(":")[2]
+        except (binascii.Error, UnicodeDecodeError):
+            given = ""
+        if scheme.lower() != "basic" or not secrets.compare_digest(given.encode(), PASSWORD.encode()):
+            return Response(status_code=401, headers={"WWW-Authenticate": 'Basic realm="Bookaudifier"'})
+    return await call_next(request)
 
 
 @app.middleware("http")
