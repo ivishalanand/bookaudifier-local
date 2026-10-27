@@ -328,7 +328,13 @@ if ("mediaSession" in navigator) {
   $("seek").max = sentences.length - 1;
   speed = book.progress.speed || 1;
   const vs = await (await fetch("/api/voices")).json();
-  for (const { id: vid, name } of vs.voices) $("voice").append(new Option(name, vid));
+  // Closed menu shows just the name; accent and gender appear as groups when opened.
+  for (const { id: vid, name } of vs.voices) {
+    const [short, group = "Other"] = name.split(" · ");
+    let g = [...$("voice").children].find((el) => el.label === group);
+    if (!g) $("voice").append((g = Object.assign(document.createElement("optgroup"), { label: group })));
+    g.append(new Option(short, vid));
+  }
   voice = vs.voices.some((x) => x.id === book.progress.voice) ? book.progress.voice : vs.default;
   $("voice").value = voice;
   $("speed").value = String(speed);

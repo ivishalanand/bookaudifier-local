@@ -303,7 +303,7 @@ body.over .library { outline: 2px dashed var(--accent); outline-offset: -12px; b
 .buttons .skip { position: relative; }
 .buttons .skip small { position: absolute; font-size: 8px; font-weight: 700; top: 15px; }
 .controls .right { justify-self: end; display: flex; gap: 6px; }
-#voice { max-width: 150px; }
+#voice { max-width: 120px; }
 .controls select {
   font: inherit;
   font-size: 13px;

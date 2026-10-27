@@ -17,7 +17,7 @@ class Kokoro:
     voices = {
         "af_heart": "Heart · US female",
         "af_bella": "Bella · US female",
-        "af_nicole": "Nicole · US female, soft",
+        "af_nicole": "Nicole · US female",
         "af_sarah": "Sarah · US female",
         "am_michael": "Michael · US male",
         "am_fenrir": "Fenrir · US male",
