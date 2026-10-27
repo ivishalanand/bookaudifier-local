@@ -18,6 +18,7 @@ const clips = new Map(); // idx -> Promise<objectURL>
 const known = new Map(); // idx -> real duration (s)
 const timings = new Map(); // idx -> [[start, end, page, x, y, w, h], ...] per spoken word
 let knownSecs = 0, knownChars = 0;
+let voice = ""; // Kokoro voice id
 
 const estDur = (i) => known.get(i) ?? (sentences[i].text.length / CHARS_PER_SEC) * (knownSecs ? knownSecs / (knownChars / CHARS_PER_SEC) : 1);
 
@@ -28,15 +29,17 @@ async function wavDuration(blob) {
 
 function clip(i) {
   if (!clips.has(i)) {
-    const p = fetch(`/api/books/${id}/audio/${i}.wav`)
+    const v = voice;
+    const p = fetch(`/api/books/${id}/audio/${i}.wav?voice=${v}`)
       .then((r) => { if (!r.ok) throw new Error(r.statusText); return r.blob(); })
       .then(async (b) => {
+        if (v !== voice) return URL.createObjectURL(b); // voice changed meanwhile
         if (!known.has(i)) {
           const d = await wavDuration(b);
           known.set(i, d); knownSecs += d; knownChars += sentences[i].text.length;
         }
         if (!timings.has(i)) {
-          timings.set(i, await fetch(`/api/books/${id}/audio/${i}.json`).then((r) => (r.ok ? r.json() : [])).catch(() => []));
+          timings.set(i, await fetch(`/api/books/${id}/audio/${i}.json?voice=${v}`).then((r) => (r.ok ? r.json() : [])).catch(() => []));
         }
         return URL.createObjectURL(b);
       });
@@ -234,7 +237,7 @@ function save(force = false) {
     method: "PUT",
     keepalive: true,
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ sentence: cur, offset: curTime(), speed }),
+    body: JSON.stringify({ sentence: cur, offset: curTime(), speed, voice }),
   });
 }
 
@@ -243,6 +246,16 @@ $("back").onclick = () => seekBy(-10);
 $("fwd").onclick = () => seekBy(10);
 $("prev").onclick = () => go(curTime() > 2 ? cur : cur - 1);
 $("next").onclick = () => go(cur + 1);
+// New voice: drop clips made with the old one and replay the current sentence.
+$("voice").onchange = (e) => {
+  voice = e.target.value;
+  for (const p of clips.values()) p.then(URL.revokeObjectURL, () => {});
+  clips.clear(); known.clear(); timings.clear(); knownSecs = knownChars = 0;
+  const t = curTime();
+  audio.pause(); loaded = -1;
+  go(cur, t);
+  e.target.blur();
+};
 $("speed").onchange = (e) => {
   speed = Number(e.target.value);
   audio.defaultPlaybackRate = audio.playbackRate = speed;
@@ -314,6 +327,10 @@ if ("mediaSession" in navigator) {
   sentences.forEach((s, i) => s.rects.forEach((r) => byPage[r[0]].push([i, r])));
   $("seek").max = sentences.length - 1;
   speed = book.progress.speed || 1;
+  const vs = await (await fetch("/api/voices")).json();
+  for (const { id: vid, name } of vs.voices) $("voice").append(new Option(name, vid));
+  voice = vs.voices.some((x) => x.id === book.progress.voice) ? book.progress.voice : vs.default;
+  $("voice").value = voice;
   $("speed").value = String(speed);
   renderPages();
   setZoom(zoom);

@@ -6,19 +6,38 @@ import threading
 import numpy as np
 
 
+os.environ.setdefault("HF_HUB_DISABLE_XET", "1")  # xet downloads stall on this Mac
+
+
 class Kokoro:
     name = "kokoro"
     sample_rate = 24000
+    voice = "af_heart"  # default
+    # Kokoro's best-rated English voices; each downloads (~0.5 MB) on first use.
+    voices = {
+        "af_heart": "Heart · US female",
+        "af_bella": "Bella · US female",
+        "af_nicole": "Nicole · US female, soft",
+        "af_sarah": "Sarah · US female",
+        "am_michael": "Michael · US male",
+        "am_fenrir": "Fenrir · US male",
+        "am_puck": "Puck · US male",
+        "bf_emma": "Emma · UK female",
+        "bf_isabella": "Isabella · UK female",
+        "bm_george": "George · UK male",
+        "bm_fable": "Fable · UK male",
+    }
 
-    def __init__(self, voice: str = "af_heart"):
+    def __init__(self):
         from kokoro import KPipeline
 
-        self.voice = voice
-        self.pipeline = KPipeline(lang_code="a", repo_id="hexgrad/Kokoro-82M")
+        us = KPipeline(lang_code="a", repo_id="hexgrad/Kokoro-82M")
+        uk = KPipeline(lang_code="b", repo_id="hexgrad/Kokoro-82M", model=us.model)  # British pronunciation
+        self.pipelines = {"a": us, "b": uk}
 
-    def synthesize(self, text: str) -> tuple[np.ndarray, list]:
+    def synthesize(self, text: str, voice: str) -> tuple[np.ndarray, list]:
         chunks, tokens, offset = [], [], 0.0
-        for r in self.pipeline(text, voice=self.voice):
+        for r in self.pipelines[voice[0]](text, voice=voice):
             if r.audio is None:
                 continue
             for t in r.tokens or []:
@@ -29,7 +48,7 @@ class Kokoro:
         return (np.concatenate(chunks) if chunks else np.zeros(0, dtype=np.float32)), tokens
 
 
-# Add Chatterbox / Higgs / VoxCPM2 here later with the same name/sample_rate/voice/synthesize shape.
+# Add Chatterbox / Higgs / VoxCPM2 here later with the same name/sample_rate/voice/voices/synthesize shape.
 # synthesize returns (audio, [(word, start_s, end_s), ...]); an engine without timings returns [].
 ENGINES = {"kokoro": Kokoro}
 
@@ -45,10 +64,10 @@ def engine():
         return _engine
 
 
-def synthesize(text: str) -> tuple[np.ndarray, list]:
+def synthesize(text: str, voice: str) -> tuple[np.ndarray, list]:
     e = engine()
     with _lock:  # one model, one generation at a time
-        return e.synthesize(text)
+        return e.synthesize(text, voice)
 
 
 def _letters(s: str) -> str:

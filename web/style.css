@@ -302,7 +302,8 @@ body.over .library { outline: 2px dashed var(--accent); outline-offset: -12px; b
 .buttons .play svg { width: 26px; height: 26px; }
 .buttons .skip { position: relative; }
 .buttons .skip small { position: absolute; font-size: 8px; font-weight: 700; top: 15px; }
-.controls .right { justify-self: end; }
+.controls .right { justify-self: end; display: flex; gap: 6px; }
+#voice { max-width: 150px; }
 .controls select {
   font: inherit;
   font-size: 13px;
@@ -338,14 +339,18 @@ body.over .library { outline: 2px dashed var(--accent); outline-offset: -12px; b
 .jump svg { width: 16px; height: 16px; fill: currentColor; }
 
 @media (max-width: 640px) {
-  .controls { grid-template-columns: 1fr auto; }
+  .controls { grid-template-columns: 1fr; justify-items: center; }
+  .controls .right { justify-self: center; }
   .controls .left { display: none; }
-  .buttons { justify-self: start; gap: 0; }
+  .buttons { gap: 0; }
   .buttons button { width: 36px; height: 36px; }
   .buttons .play { width: 50px; height: 50px; margin: 0 4px; }
   .player { padding: 12px 14px; }
   .controls select { padding: 7px 8px; }
+  #voice { max-width: 170px; }
   .top h1 { text-align: left; }
+  .jump { bottom: 196px; }
+  .pages { padding-bottom: 230px; }
 }
 
 /* Focus mode: only the pages and the highlight */

@@ -57,6 +57,7 @@ class Progress(BaseModel):
     sentence: int = 0
     offset: float = 0
     speed: float = 1.0
+    voice: str = ""
 
 
 @app.get("/api/books")
@@ -137,17 +138,26 @@ def page_image(book_id: str, pno: int):
     return FileResponse(out, headers={"Cache-Control": "max-age=31536000"})
 
 
-def sentence_audio(book_id: str, idx: int) -> Path:
+@app.get("/api/voices")
+def voices():
+    e = tts.engine()
+    return {"default": e.voice, "voices": [{"id": k, "name": v} for k, v in e.voices.items()]}
+
+
+def sentence_audio(book_id: str, idx: int, voice: str | None) -> Path:
     """Generate (once) a sentence's WAV plus a JSON of [start, end, page, x, y, w, h] per spoken word."""
     d = book_dir(book_id)
     sentences = load_meta(d)["sentences"]
     if not 0 <= idx < len(sentences):
         raise HTTPException(404, "No such sentence")
     e = tts.engine()
-    out = d / "audio" / f"{e.name}-{e.voice}" / f"{idx}.wav"
+    voice = voice or e.voice
+    if voice not in e.voices:
+        raise HTTPException(400, "Unknown voice")
+    out = d / "audio" / f"{e.name}-{voice}" / f"{idx}.wav"
     if not out.with_suffix(".json").exists():
         out.parent.mkdir(parents=True, exist_ok=True)
-        audio, tokens = tts.synthesize(sentences[idx]["text"])
+        audio, tokens = tts.synthesize(sentences[idx]["text"], voice)
         words = sentences[idx].get("words", [])
         times = tts.align([w[0] for w in words], tokens)
         timed = [[*t, *w[1:]] for t, w in zip(times, words) if t]
@@ -159,13 +169,13 @@ def sentence_audio(book_id: str, idx: int) -> Path:
 
 
 @app.get("/api/books/{book_id}/audio/{idx}.wav")
-def audio_wav(book_id: str, idx: int):
-    return FileResponse(sentence_audio(book_id, idx))
+def audio_wav(book_id: str, idx: int, voice: str | None = None):
+    return FileResponse(sentence_audio(book_id, idx, voice))
 
 
 @app.get("/api/books/{book_id}/audio/{idx}.json")
-def audio_words(book_id: str, idx: int):
-    return FileResponse(sentence_audio(book_id, idx).with_suffix(".json"))
+def audio_words(book_id: str, idx: int, voice: str | None = None):
+    return FileResponse(sentence_audio(book_id, idx, voice).with_suffix(".json"))
 
 
 app.mount("/", StaticFiles(directory=ROOT / "web", html=True), name="web")
