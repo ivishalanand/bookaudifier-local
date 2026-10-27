@@ -347,3 +347,10 @@ body.over .library { outline: 2px dashed var(--accent); outline-offset: -12px; b
   .controls select { padding: 7px 8px; }
   .top h1 { text-align: left; }
 }
+
+/* Focus mode: only the pages and the highlight */
+.top, .player, .jump { transition: opacity 0.4s, transform 0.4s, visibility 0.4s; }
+body.focus { cursor: none; }
+body.focus .top { opacity: 0; visibility: hidden; transform: translateY(-100%); }
+body.focus .player { opacity: 0; visibility: hidden; transform: translate(-50%, 24px); }
+body.focus .jump { opacity: 0; visibility: hidden; }

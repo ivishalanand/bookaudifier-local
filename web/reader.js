@@ -174,8 +174,9 @@ requestAnimationFrame(trackWord);
 function follow(force = false) {
   const target = wordEl.isConnected ? wordEl : document.querySelector(".hl");
   if (!target || (!force && Date.now() - lastUserScroll < 3000)) return;
-  const top = document.querySelector(".top").getBoundingClientRect().bottom;
-  const bottom = $("player").getBoundingClientRect().top;
+  const focused = document.body.classList.contains("focus");
+  const top = focused ? 0 : document.querySelector(".top").getBoundingClientRect().bottom;
+  const bottom = focused ? innerHeight : $("player").getBoundingClientRect().top;
   const mid = (top + bottom) / 2, band = (bottom - top) * 0.1;
   const r = target.getBoundingClientRect();
   const off = (r.top + r.bottom) / 2 - mid;
@@ -185,6 +186,19 @@ function follow(force = false) {
     scrollBy({ top: Math.abs(off) > band ? off : 0, left: side, behavior: Math.abs(off) > 3 * innerHeight ? "instant" : "smooth" });
   }
 }
+// Focus mode: after a few idle seconds hide everything but the pages; any movement brings it back.
+let idleTimer;
+function wake() {
+  document.body.classList.remove("focus");
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => {
+    if (document.querySelector(".top:hover, .player:hover, select:focus")) return wake();
+    document.body.classList.add("focus");
+  }, 2500);
+}
+["mousemove", "mousedown", "keydown", "touchstart", "wheel"].forEach((ev) => addEventListener(ev, wake, { passive: true }));
+wake();
+
 // Offer a way back when the reading spot is scrolled out of view.
 addEventListener("scroll", () => {
   const r = document.querySelector(".hl")?.getBoundingClientRect();
