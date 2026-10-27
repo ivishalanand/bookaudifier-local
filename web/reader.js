@@ -264,7 +264,16 @@ const stepZoom = (d) => setZoom(ZOOMS[Math.max(0, Math.min(ZOOMS.length - 1, ZOO
 $("zoomIn").onclick = () => stepZoom(1);
 $("zoomOut").onclick = () => stepZoom(-1);
 
-$("seek").oninput =(e) => {
+// Dark pages: invert the page images so text is light on black. Off by default.
+function setNight(on) {
+  document.body.classList.toggle("night", on);
+  $("night").setAttribute("aria-pressed", on);
+  try { localStorage.night = on ? "1" : ""; } catch {}
+}
+try { setNight(localStorage.night === "1"); } catch {}
+$("night").onclick = () => setNight(!document.body.classList.contains("night"));
+
+$("seek").oninput = (e) => {
   scrubbing = true;
   e.target.style.setProperty("--p", `${(100 * e.target.value) / Math.max(1, sentences.length - 1)}%`);
   $("where").textContent = `Page ${sentences[e.target.value].rects[0][0] + 1} of ${pages.length}`;
@@ -278,6 +287,7 @@ addEventListener("keydown", (e) => {
   else if (e.code === "ArrowRight") seekBy(10);
   else if (e.key === "+" || e.key === "=") stepZoom(1);
   else if (e.key === "-") stepZoom(-1);
+  else if (e.key === "n") $("night").click();
 });
 addEventListener("pagehide", () => save(true));
 

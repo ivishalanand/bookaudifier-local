@@ -354,3 +354,23 @@ body.focus { cursor: none; }
 body.focus .top { opacity: 0; visibility: hidden; transform: translateY(-100%); }
 body.focus .player { opacity: 0; visibility: hidden; transform: translate(-50%, 24px); }
 body.focus .jump { opacity: 0; visibility: hidden; }
+
+/* Dark pages: light text on near-black, highlights glow instead of darken */
+.night-toggle {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--muted);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+  transition: background 0.15s, color 0.15s;
+}
+.night-toggle svg { width: 17px; height: 17px; fill: currentColor; }
+.night-toggle:hover { color: var(--text); }
+.night-toggle[aria-pressed="true"] { background: var(--accent); color: var(--bg); box-shadow: none; }
+body.night .page { background: #141414; }
+body.night .page img { filter: invert(0.92) hue-rotate(180deg); }
+body.night .hl, body.night .hlw { mix-blend-mode: screen; }
