@@ -179,7 +179,11 @@ function follow(force = false) {
   const mid = (top + bottom) / 2, band = (bottom - top) * 0.1;
   const r = target.getBoundingClientRect();
   const off = (r.top + r.bottom) / 2 - mid;
-  if (Math.abs(off) > band) scrollBy({ top: off, behavior: Math.abs(off) > 3 * innerHeight ? "instant" : "smooth" });
+  // When pages are wider than the window, also pan sideways to the word.
+  const side = r.left < 0 || r.right > innerWidth ? (r.left + r.right - innerWidth) / 2 : 0;
+  if (Math.abs(off) > band || side) {
+    scrollBy({ top: Math.abs(off) > band ? off : 0, left: side, behavior: Math.abs(off) > 3 * innerHeight ? "instant" : "smooth" });
+  }
 }
 ["wheel", "touchmove", "mousedown", "keydown"].forEach((ev) => addEventListener(ev, () => (lastUserScroll = Date.now()), { passive: true }));
 
@@ -223,7 +227,23 @@ $("speed").onchange = (e) => {
   audio.defaultPlaybackRate = audio.playbackRate = speed;
   save(true); updateUI();
 };
-$("seek").oninput = (e) => {
+const ZOOMS = [0.6, 0.75, 0.9, 1, 1.25, 1.5, 1.75, 2, 2.5];
+let zoom = 1;
+try { zoom = ZOOMS.includes(+localStorage.zoom) ? +localStorage.zoom : 1; } catch {}
+function setZoom(z) {
+  zoom = z;
+  $("pages").style.setProperty("--zoom", z);
+  $("zoomLevel").textContent = `${Math.round(z * 100)}%`;
+  $("zoomOut").disabled = z === ZOOMS[0];
+  $("zoomIn").disabled = z === ZOOMS.at(-1);
+  try { localStorage.zoom = z; } catch {}
+  follow(true); // keep the reading spot on screen
+}
+const stepZoom = (d) => setZoom(ZOOMS[Math.max(0, Math.min(ZOOMS.length - 1, ZOOMS.indexOf(zoom) + d))]);
+$("zoomIn").onclick = () => stepZoom(1);
+$("zoomOut").onclick = () => stepZoom(-1);
+
+$("seek").oninput =(e) => {
   scrubbing = true;
   $("where").textContent = `Page ${sentences[e.target.value].rects[0][0] + 1} of ${pages.length}`;
 };
@@ -234,6 +254,8 @@ addEventListener("keydown", (e) => {
   if (e.code === "Space") { e.preventDefault(); toggle(); }
   else if (e.code === "ArrowLeft") seekBy(-10);
   else if (e.code === "ArrowRight") seekBy(10);
+  else if (e.key === "+" || e.key === "=") stepZoom(1);
+  else if (e.key === "-") stepZoom(-1);
 });
 addEventListener("pagehide", () => save(true));
 
@@ -261,7 +283,8 @@ if ("mediaSession" in navigator) {
   speed = book.progress.speed || 1;
   $("speed").value = String(speed);
   renderPages();
-  cur = Math.min(book.progress.sentence || 0, sentences.length - 1);
+  setZoom(zoom);
+  cur =Math.min(book.progress.sentence || 0, sentences.length - 1);
   pendingOffset = book.progress.offset || 0;
   highlight(cur, true);
   updateUI();
