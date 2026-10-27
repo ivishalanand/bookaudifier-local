@@ -8,33 +8,75 @@
 </head>
 <body>
   <main class="library">
-    <h1>Bookaudifier</h1>
-    <p class="sub">Your books, read aloud. Everything stays on this Mac.</p>
-    <label class="drop" id="drop">
-      <input type="file" id="file" accept="application/pdf">
-      <span id="dropText"><strong>Upload a PDF</strong> or drop it here</span>
-    </label>
+    <header class="masthead">
+      <h1>Bookaudifier</h1>
+      <p class="sub">Your books, read aloud. Everything stays on this Mac.</p>
+    </header>
+
+    <section class="hero" id="hero" hidden>
+      <a class="hero-cover" id="heroCover"><img alt=""></a>
+      <div class="hero-body">
+        <div class="eyebrow">Continue listening</div>
+        <h2 id="heroTitle"></h2>
+        <div class="hero-meta" id="heroMeta"></div>
+        <div class="bar"><span id="heroBar"></span></div>
+        <a class="resume" id="heroLink">
+          <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg> Resume
+        </a>
+      </div>
+    </section>
+
+    <h3 class="shelf-title" id="shelfTitle">Library</h3>
+    <ul class="shelf" id="books">
+      <li>
+        <label class="add" id="drop">
+          <input type="file" id="file" accept="application/pdf">
+          <span class="plus">+</span>
+          <span id="dropText">Add a PDF<br><small>or drop it anywhere</small></span>
+        </label>
+      </li>
+    </ul>
     <p class="error" id="error"></p>
-    <ul class="books" id="books"></ul>
   </main>
   <script>
     const $ = (id) => document.getElementById(id);
+    const cover = (id) => `/api/books/${id}/pages/0.png`;
+    const duration = (s) => {
+      const m = Math.round(s / 60);
+      return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`;
+    };
 
     async function load() {
       const books = await (await fetch("/api/books")).json();
-      $("books").innerHTML = "";
+      document.querySelectorAll(".shelf .book").forEach((el) => el.remove());
+      $("shelfTitle").textContent = books.length ? "Library" : "Add your first book";
+
+      const last = books[0];
+      $("hero").hidden = !last;
+      if (last) {
+        const pct = Math.round((100 * last.progress) / Math.max(1, last.sentences - 1));
+        $("heroCover").href = $("heroLink").href = `reader.html?id=${last.id}`;
+        $("heroCover").querySelector("img").src = cover(last.id);
+        $("heroTitle").textContent = last.title;
+        $("heroMeta").textContent = `Page ${last.page} of ${last.pages} · ${pct}% · about ${duration(last.left_secs)} left`;
+        $("heroBar").style.width = `${pct}%`;
+      }
+
       for (const b of books) {
         const pct = Math.round((100 * b.progress) / Math.max(1, b.sentences - 1));
         const li = document.createElement("li");
         li.className = "book";
         li.innerHTML = `
           <a href="reader.html?id=${b.id}">
+            <div class="cover"><img loading="lazy" alt=""><div class="bar"><span></span></div></div>
             <div class="title"></div>
-            <div class="meta">${b.pages} pages · ${pct}% listened</div>
-            <div class="bar"><span style="width:${pct}%"></span></div>
+            <div class="meta"></div>
           </a>
-          <button class="remove" title="Remove">Remove</button>`;
+          <button class="remove" title="Remove">×</button>`;
+        li.querySelector("img").src = cover(b.id);
+        li.querySelector(".bar span").style.width = `${pct}%`;
         li.querySelector(".title").textContent = b.title;
+        li.querySelector(".meta").textContent = pct ? `${pct}% · ${duration(b.left_secs)} left` : `${b.pages} pages · new`;
         li.querySelector(".remove").onclick = async () => {
           if (!confirm(`Remove "${b.title}" and its audio?`)) return;
           await fetch(`/api/books/${b.id}`, { method: "DELETE" });
@@ -47,6 +89,7 @@
     async function upload(file) {
       $("error").textContent = "";
       $("dropText").textContent = `Reading ${file.name}…`;
+      $("drop").classList.add("busy");
       const body = new FormData();
       body.append("file", file);
       const res = await fetch("/api/books", { method: "POST", body });
@@ -54,19 +97,19 @@
       if (res.ok) location.href = `reader.html?id=${data.id}`;
       else {
         $("error").textContent = data.detail;
-        $("dropText").innerHTML = "<strong>Upload a PDF</strong> or drop it here";
+        $("drop").classList.remove("busy");
+        $("dropText").innerHTML = "Add a PDF<br><small>or drop it anywhere</small>";
       }
     }
 
     $("file").onchange = (e) => e.target.files[0] && upload(e.target.files[0]);
-    const drop = $("drop");
-    drop.ondragover = (e) => { e.preventDefault(); drop.classList.add("over"); };
-    drop.ondragleave = () => drop.classList.remove("over");
-    drop.ondrop = (e) => {
+    addEventListener("dragover", (e) => { e.preventDefault(); document.body.classList.add("over"); });
+    addEventListener("dragleave", (e) => { if (!e.relatedTarget) document.body.classList.remove("over"); });
+    addEventListener("drop", (e) => {
       e.preventDefault();
-      drop.classList.remove("over");
+      document.body.classList.remove("over");
       if (e.dataTransfer.files[0]) upload(e.dataTransfer.files[0]);
-    };
+    });
     load();
   </script>
 </body>

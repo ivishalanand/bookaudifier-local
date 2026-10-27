@@ -67,7 +67,10 @@ def list_books():
         if not meta:
             continue
         progress = read_json(d / "progress.json", {})
+        at = min(progress.get("sentence", 0), len(meta["sentences"]) - 1)
         books.append({
+            "page": meta["sentences"][at]["rects"][0][0] + 1,
+            "left_secs": sum(len(s["text"]) for s in meta["sentences"][at:]) / 15,  # ~Kokoro pace at 1x
             "id": d.name,
             "title": meta["title"],
             "pages": len(meta["pages"]),
